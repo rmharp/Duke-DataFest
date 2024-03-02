@@ -26,6 +26,8 @@ sample_data_mediaviews <- read.csv("./sample_data/media_views.csv")
 ```
 
 ```{r}
+### Informed EDA
+
 sample_rows_with_non_na <- apply(sample_data[, 29:40], 1, function(x) any(!is.na(x)))
 sample_filtered_data <- sample_data[sample_rows_with_non_na, ]
 lrn_type_counts <- table(sample_data_responses$lrn_type)
@@ -93,10 +95,75 @@ ggplot(avg_points_by_book, aes(x = book, y = avg_points_earned, fill = book)) +
        x = "Book",
        y = "Average Points Earned")
 
+sample_data_responses$combined_column <- paste(sample_data_responses$chapter_number, sample_data_responses$section_number, sep = ".")
 
+avg_points_by_combined <- sample_data_responses %>%
+  group_by(combined_column) %>%
+  summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
+
+ggplot(avg_points_by_combined, aes(x = combined_column, y = avg_points_earned, fill = combined_column)) +
+  geom_col() +
+  scale_fill_viridis_d(begin = 0.3, end = 0.9, option = "C") + # Use a professional color scale
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8), # Adjust text for readability
+        axis.title.x = element_blank(), # Since labels are self-explanatory
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none") + # Hide legend for clarity
+  labs(title = "Average Points Earned by Chapter.Section",
+       y = "Average Points Earned")
 ```
 
 ```{r}
-rows_with_non_na <- apply(data[, 29:40], 1, function(x) any(!is.na(x)))
-filtered_data <- sample_data[rows_with_non_na, ]
+### Uninformed EDA
+
+plot_avg_points_by_column <- function(data, column_name) {
+  # First, ensure the column is treated as a factor for the plotting
+  data <- data %>%
+    mutate(!!sym(column_name) := as.factor(!!sym(column_name)))
+  
+  # Then, group by and summarise
+  avg_points <- data %>%
+    group_by(!!sym(column_name)) %>%
+    summarise(avg_points_earned = mean(points_earned, na.rm = TRUE), .groups = 'drop')
+  
+  # Determine if the original column (before conversion) is numeric
+  is_numeric <- is.numeric(data[[column_name]])
+  
+  # Plotting
+  p <- ggplot(avg_points, aes(x = !!sym(column_name), y = avg_points_earned, fill = !!sym(column_name))) +
+    geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    labs(title = paste("Average Points Earned by", column_name),
+         x = column_name,
+         y = "Average Points Earned")
+  
+  # Apply appropriate color scale based on data type
+  if (is_numeric) {
+    p <- p + scale_fill_viridis_c()
+  } else {
+    p <- p + scale_fill_viridis_d()
+  }
+  
+  print(p)
+}
+
+# Exclude multiple columns when iterating for plots
+columns_to_exclude <- c("points_earned", "page", "points_possible", "dt_submitted", "completes_page", "lrn_response_id", "lrn_dt_started", "lrn_dt_saved", "lrn_status", "lrn_option_0", "lrn_option_1", "lrn_option_2", "lrn_option_3", "lrn_option_4", "lrn_option_5", "lrn_option_6", "lrn_option_7", "lrn_option_8", "lrn_option_9", "lrn_option_10", "lrn_option_11", "response", "prompt", "user_agent")
+columns_of_interest <- setdiff(names(sample_data_responses), columns_to_exclude)
+
+for(column_name in columns_of_interest) {
+  plot_avg_points_by_column(sample_data_responses, column_name)
+}
+```
+
+```{r}
+media_views$combined_column <- paste(media_views$chapter_number, media_views$section_number, sep = ".")
+sorted_media_views <- media_views[order(media_views$combined_column), ]
+combined_counts <- table(sorted_media_views$combined_column)
 ```
