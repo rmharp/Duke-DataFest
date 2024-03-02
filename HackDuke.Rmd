@@ -1,0 +1,102 @@
+---
+title: "HackDuke"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+if(!require(dplyr)) {install.packages("dplyr"); library(dplyr)}
+if(!require(tidyverse)) {install.packages("tidyverse"); library(tidyverse)}
+if(!require(rvest)) {install.packages("rvest"); library(rvest)}
+if(!require(RSelenium)) {install.packages("RSelenium"); library(RSelenium)}
+if(!require(wdman)) {install.packages("wdman"); library(wdman)}
+if(!require(netstat)) {install.packages("netstat"); library(netstat)}
+if(!require(xml2)) {install.packages("xml2"); library(xml2)}
+if(!require(webdriver)) {install.packages("webdriver"); library(webdriver)}
+if(!require(purrr)) {install.packages("purrr"); library(purrr)}
+if (!require(here)) {install.packages("here"); library(here)}
+if (!require(dotenv)) {install.packages("dotenv"); library(dotenv)}
+if (!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
+```
+
+```{r data}
+#data <- read.csv("./data/responses.csv")
+sample_data_responses <- read.csv("./sample_data/responses.csv")
+sample_data_mediaviews <- read.csv("./sample_data/media_views.csv")
+```
+
+```{r}
+sample_rows_with_non_na <- apply(sample_data[, 29:40], 1, function(x) any(!is.na(x)))
+sample_filtered_data <- sample_data[sample_rows_with_non_na, ]
+lrn_type_counts <- table(sample_data_responses$lrn_type)
+# Convert the table to a dataframe for ggplot2
+lrn_type_counts_df <- as.data.frame(lrn_type_counts)
+
+# Rename the columns for clarity
+names(lrn_type_counts_df) <- c("lrn_type", "count")
+
+# Calculate the total count
+total_count <- sum(lrn_type_counts_df$count)
+
+# Add a percentage column
+lrn_type_counts_df <- lrn_type_counts_df %>%
+  mutate(percentage = (count / total_count) * 100)
+
+# Create the bar chart showing percentages
+ggplot(lrn_type_counts_df, aes(x = lrn_type, y = percentage, fill = lrn_type)) +
+  geom_bar(stat = "identity", color = "black", fill = "steelblue", show.legend = FALSE) + # Add border color and fill
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12), # Adjust text size and angle for readability
+        axis.title = element_text(size = 14), # Adjust axis title size
+        title = element_text(size = 16), # Adjust plot title size
+        panel.grid.major.x = element_blank(), # Remove x major grid lines for cleaner look
+        panel.grid.minor = element_blank(), # Remove minor grid lines
+        panel.background = element_rect(fill = "white", colour = "black"), # Background color
+        plot.background = element_rect(fill = "white", color = NA)) + # Plot background color
+  labs(title = "Percentage of Each Unique Learning Type",
+       x = "Learning Type",
+       y = "Percentage (%)")
+
+# Calculate the average points earned for each lrn_type
+avg_points_by_lrn_type <- sample_data_responses %>%
+  group_by(lrn_type) %>%
+  summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
+
+# Create the bar plot
+ggplot(avg_points_by_lrn_type, aes(x = lrn_type, y = avg_points_earned, fill = lrn_type)) +
+  geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
+  scale_fill_viridis_d() + # A professional color scale from the viridis package
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5)) + # Center the title for a professional look
+  labs(title = "Average Points Earned by Learning Type",
+       x = "Learning Type",
+       y = "Average Points Earned")
+
+# Calculate the average points earned for each lrn_type
+avg_points_by_book <- sample_data_responses %>%
+  group_by(book) %>%
+  summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
+
+ggplot(avg_points_by_book, aes(x = book, y = avg_points_earned, fill = book)) +
+  geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
+  scale_fill_viridis_d(begin = 0.3, end = 0.9, option = "C") + # A professional and accessible color scale
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank()) + # Hide the legend title
+  labs(title = "Average Points Earned by Book",
+       x = "Book",
+       y = "Average Points Earned")
+
+
+```
+
+```{r}
+rows_with_non_na <- apply(data[, 29:40], 1, function(x) any(!is.na(x)))
+filtered_data <- sample_data[rows_with_non_na, ]
+```
