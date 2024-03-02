@@ -23,6 +23,7 @@ if (!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
 #data <- read.csv("./data/responses.csv")
 sample_data_responses <- read.csv("./sample_data/responses.csv")
 sample_data_mediaviews <- read.csv("./sample_data/media_views.csv")
+sample_data_checkpoints <- read.csv("./sample_data/checkpoints.csv")
 ```
 
 ```{r}
@@ -193,61 +194,44 @@ combined_percentage_df
 ```{r}
 ### Pulse Rating vs. Average Score
 
-sample_data_checkpoints <- read.csv("./sample_data/checkpoints.csv")
-plot_and_return_avg_points_table <- function(data, column_name) {
-  # Ensure the column is treated as a factor
-  data[[column_name]] <- as.factor(data[[column_name]])
-  
-  # Group by, summarise, and arrange the data
-  avg_points <- data %>%
-    group_by(!!sym(column_name)) %>%
-    summarise(avg_points_earned = mean(points_earned, na.rm = TRUE), .groups = 'drop') %>%
-    arrange(desc(avg_points_earned))
+# Step 1: Calculate the average pulse rating for each construct within each book chapter
+avg_pulse_rating_construct <- sample_data_checkpoints %>%
+  filter(!is.na(book), !is.na(chapter_number), !is.na(response) & response != "" & !is.na(as.numeric(response))) %>%
+  group_by(book, chapter_number, construct) %>%
+  summarise(avg_pulse_rating = mean(as.numeric(response), na.rm = TRUE))
 
-  # Convert the summarised column back to a factor with levels ordered by avg_points_earned for plotting
-  avg_points[[column_name]] <- factor(avg_points[[column_name]], levels = avg_points[[column_name]])
-  
-  # Determine if the original column (before conversion) is numeric for plotting
-  is_numeric <- is.numeric(data[[column_name]])
-  
-  # Plotting
-  p <- ggplot(avg_points, aes(x = reorder(!!sym(column_name), avg_points_earned), y = avg_points_earned, fill = !!sym(column_name))) +
-    geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          plot.title = element_text(hjust = 0.5)) +
-    labs(title = paste("Average Points Earned by", column_name),
-         x = column_name,
-         y = "Average Points Earned")
+avg_pulse_rating <- sample_data_checkpoints %>%
+  mutate(response = as.numeric(response)) %>%
+  filter(!is.na(book) & !is.na(chapter_number) & !is.na(response)) %>%
+  group_by(book, chapter_number) %>%
+  summarise(avg_pulse_rating = mean(response, na.rm = TRUE), .groups = 'drop')
 
-  # Apply appropriate color scale based on data type
-  if (is_numeric) {
-    p <- p + scale_fill_viridis_c()
-  } else {
-    p <- p + scale_fill_viridis_d()
-  }
-  
-  print(p)
-  
-  # Return the data table
-  return(avg_points)
-}
+# Step 2: Calculate the average score for each book 
+avg_score <- sample_data_responses %>%
+  filter(!is.na(book), !is.na(chapter_number), !is.na(points_earned)) %>%
+  group_by(book, chapter_number) %>%
+  summarise(avg_score = mean(points_earned, na.rm = TRUE))
 
+merged_data <- inner_join(avg_pulse_rating, avg_score, by = c("book", "chapter_number"))
+merged_data_by_construct <- inner_join(avg_pulse_rating_construct, avg_score, by = c("book", "chapter_number"))
 
-# Exclude multiple columns when iterating for plots
-columns_to_exclude <- c("points_earned", "page", "points_possible", "dt_submitted", "completes_page", "lrn_response_id", "lrn_dt_started", "lrn_dt_saved", "lrn_status", "lrn_option_0", "lrn_option_1", "lrn_option_2", "lrn_option_3", "lrn_option_4", "lrn_option_5", "lrn_option_6", "lrn_option_7", "lrn_option_8", "lrn_option_9", "lrn_option_10", "lrn_option_11", "response", "prompt", "user_agent")
-columns_of_interest <- setdiff(names(sample_data_responses), columns_to_exclude)
+# Step 4: Plotting
+ggplot(merged_data, aes(x = avg_pulse_rating, y = avg_score, color = book)) +
+  geom_point() +
+  labs(
+    title = "Average Score by Chapter vs. Pulse Rating Overall",
+    x = "Average Pulse Rating",
+    y = "Average Score by Chapter"
+  ) +
+  theme_minimal()
 
-avg_points_tables <- list()
-
-for(column_name in columns_of_interest) {
-  # Now calling the correct function that returns a table
-  avg_points_table <- plot_and_return_avg_points_table(sample_data_responses, column_name)
-  
-  # Store the table in a list for later use
-  avg_points_tables[[column_name]] <- avg_points_table
-}
-avg_points_tables
+ggplot(merged_data_by_construct, aes(x = avg_pulse_rating, y = avg_score, color = book)) +
+  geom_point() +
+  facet_wrap(~construct) +
+  labs(
+    title = "Average Score by Chapter vs. Pulse Rating by Construct",
+    x = "Average Pulse Rating",
+    y = "Average Score by Chapter"
+  ) +
+  theme_minimal()
 ```
