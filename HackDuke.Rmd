@@ -116,23 +116,26 @@ ggplot(avg_points_by_combined, aes(x = combined_column, y = avg_points_earned, f
 ```
 
 ```{r}
-### Uninformed EDA
+### Uninformed Responses EDA
 
-plot_avg_points_by_column <- function(data, column_name) {
-  # First, ensure the column is treated as a factor for the plotting
-  data <- data %>%
-    mutate(!!sym(column_name) := as.factor(!!sym(column_name)))
+plot_and_return_avg_points_table <- function(data, column_name) {
+  # Ensure the column is treated as a factor
+  data[[column_name]] <- as.factor(data[[column_name]])
   
-  # Then, group by and summarise
+  # Group by, summarise, and arrange the data
   avg_points <- data %>%
     group_by(!!sym(column_name)) %>%
-    summarise(avg_points_earned = mean(points_earned, na.rm = TRUE), .groups = 'drop')
+    summarise(avg_points_earned = mean(points_earned, na.rm = TRUE), .groups = 'drop') %>%
+    arrange(desc(avg_points_earned))
+
+  # Convert the summarised column back to a factor with levels ordered by avg_points_earned for plotting
+  avg_points[[column_name]] <- factor(avg_points[[column_name]], levels = avg_points[[column_name]])
   
-  # Determine if the original column (before conversion) is numeric
+  # Determine if the original column (before conversion) is numeric for plotting
   is_numeric <- is.numeric(data[[column_name]])
   
   # Plotting
-  p <- ggplot(avg_points, aes(x = !!sym(column_name), y = avg_points_earned, fill = !!sym(column_name))) +
+  p <- ggplot(avg_points, aes(x = reorder(!!sym(column_name), avg_points_earned), y = avg_points_earned, fill = !!sym(column_name))) +
     geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1),
@@ -142,7 +145,7 @@ plot_avg_points_by_column <- function(data, column_name) {
     labs(title = paste("Average Points Earned by", column_name),
          x = column_name,
          y = "Average Points Earned")
-  
+
   # Apply appropriate color scale based on data type
   if (is_numeric) {
     p <- p + scale_fill_viridis_c()
@@ -151,19 +154,100 @@ plot_avg_points_by_column <- function(data, column_name) {
   }
   
   print(p)
+  
+  # Return the data table
+  return(avg_points)
 }
+
 
 # Exclude multiple columns when iterating for plots
 columns_to_exclude <- c("points_earned", "page", "points_possible", "dt_submitted", "completes_page", "lrn_response_id", "lrn_dt_started", "lrn_dt_saved", "lrn_status", "lrn_option_0", "lrn_option_1", "lrn_option_2", "lrn_option_3", "lrn_option_4", "lrn_option_5", "lrn_option_6", "lrn_option_7", "lrn_option_8", "lrn_option_9", "lrn_option_10", "lrn_option_11", "response", "prompt", "user_agent")
 columns_of_interest <- setdiff(names(sample_data_responses), columns_to_exclude)
 
+avg_points_tables <- list()
+
 for(column_name in columns_of_interest) {
-  plot_avg_points_by_column(sample_data_responses, column_name)
+  # Now calling the correct function that returns a table
+  avg_points_table <- plot_and_return_avg_points_table(sample_data_responses, column_name)
+  
+  # Store the table in a list for later use
+  avg_points_tables[[column_name]] <- avg_points_table
 }
+avg_points_tables
 ```
 
 ```{r}
-media_views$combined_column <- paste(media_views$chapter_number, media_views$section_number, sep = ".")
-sorted_media_views <- media_views[order(media_views$combined_column), ]
+### Chapter, Sections with video
+sample_data_mediaviews$combined_column <- paste(sample_data_mediaviews$chapter_number, sample_data_mediaviews$section_number, sep = ".")
+sorted_media_views <- sample_data_mediaviews[order(sample_data_mediaviews$combined_column), ]
 combined_counts <- table(sorted_media_views$combined_column)
+combined_percentages <- (combined_counts / sum(combined_counts)) * 100
+combined_percentage_df <- data.frame(
+  combined_column = names(combined_percentages),
+  percentage = combined_percentages
+)
+combined_percentage_df <- combined_percentage_df[-2]
+combined_percentage_df
+```
+
+```{r}
+### Pulse Rating vs. Average Score
+
+sample_data_checkpoints <- read.csv("./sample_data/checkpoints.csv")
+plot_and_return_avg_points_table <- function(data, column_name) {
+  # Ensure the column is treated as a factor
+  data[[column_name]] <- as.factor(data[[column_name]])
+  
+  # Group by, summarise, and arrange the data
+  avg_points <- data %>%
+    group_by(!!sym(column_name)) %>%
+    summarise(avg_points_earned = mean(points_earned, na.rm = TRUE), .groups = 'drop') %>%
+    arrange(desc(avg_points_earned))
+
+  # Convert the summarised column back to a factor with levels ordered by avg_points_earned for plotting
+  avg_points[[column_name]] <- factor(avg_points[[column_name]], levels = avg_points[[column_name]])
+  
+  # Determine if the original column (before conversion) is numeric for plotting
+  is_numeric <- is.numeric(data[[column_name]])
+  
+  # Plotting
+  p <- ggplot(avg_points, aes(x = reorder(!!sym(column_name), avg_points_earned), y = avg_points_earned, fill = !!sym(column_name))) +
+    geom_bar(stat = "identity", color = "black", show.legend = FALSE) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          plot.title = element_text(hjust = 0.5)) +
+    labs(title = paste("Average Points Earned by", column_name),
+         x = column_name,
+         y = "Average Points Earned")
+
+  # Apply appropriate color scale based on data type
+  if (is_numeric) {
+    p <- p + scale_fill_viridis_c()
+  } else {
+    p <- p + scale_fill_viridis_d()
+  }
+  
+  print(p)
+  
+  # Return the data table
+  return(avg_points)
+}
+
+
+# Exclude multiple columns when iterating for plots
+columns_to_exclude <- c("points_earned", "page", "points_possible", "dt_submitted", "completes_page", "lrn_response_id", "lrn_dt_started", "lrn_dt_saved", "lrn_status", "lrn_option_0", "lrn_option_1", "lrn_option_2", "lrn_option_3", "lrn_option_4", "lrn_option_5", "lrn_option_6", "lrn_option_7", "lrn_option_8", "lrn_option_9", "lrn_option_10", "lrn_option_11", "response", "prompt", "user_agent")
+columns_of_interest <- setdiff(names(sample_data_responses), columns_to_exclude)
+
+avg_points_tables <- list()
+
+for(column_name in columns_of_interest) {
+  # Now calling the correct function that returns a table
+  avg_points_table <- plot_and_return_avg_points_table(sample_data_responses, column_name)
+  
+  # Store the table in a list for later use
+  avg_points_tables[[column_name]] <- avg_points_table
+}
+avg_points_tables
 ```
