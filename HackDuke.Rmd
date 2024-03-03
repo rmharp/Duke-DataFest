@@ -402,12 +402,38 @@ mean_section_engagements <- data_pageviews |>
   group_by(book, chapter_number, section_number) |>
     summarize(mean_engagement = mean(engaged, na.rm = TRUE))
 
+median_section_engagements <- data_pageviews |>
+  filter(!is.na(book), !is.na(chapter_number), !is.na(section_number), !is.na(engaged)) %>%
+  group_by(book, chapter_number, section_number) |>
+    summarize(median_engagement = median(engaged, na.rm = TRUE))
+
+median_book_engagements <- data_pageviews |>
+  filter(!is.na(book)) %>%
+  group_by(book) |>
+    summarize(median_engagement = median(engaged, na.rm = TRUE))
+
 mean_section_scores <- data_responses %>%
   filter(!is.na(book), !is.na(chapter_number), !is.na(section_number), !is.na(points_earned)) %>%
   group_by(book, chapter_number, section_number) %>%
   summarise(mean_score = mean(points_earned, na.rm = TRUE))
 
+mean_book_scores <- data_responses %>%
+  filter(!is.na(book)) %>%
+  group_by(book) %>%
+  summarise(mean_score = mean(points_earned, na.rm = TRUE))
+
 merged_data <- inner_join(mean_section_engagements, mean_section_scores, by = c("book", "chapter_number", "section_number"))  %>% filter(mean_engagement < 1000000)
+
+merged_data1 <- inner_join(median_section_engagements, mean_section_scores, by = c("book", "chapter_number", "section_number"))
+
+merged_data2 <- inner_join(median_book_engagements, mean_book_scores, by = c("book"))
+
+bookplot <- ggplot(merged_data2, aes(x = median_engagement, y = mean_score, color = book)) +
+  geom_point(size = 4) +  # Increase the size of points
+  labs(x = "Median Engagement", y = "Mean Score", title = "Mean Score vs. Median Engagement by Book") +
+  theme_minimal() +
+  theme(legend.position = "none")  # Remove the legend
+bookplot
 
 plot <- ggplot(merged_data, aes(x = mean_engagement, y = mean_score, color = book)) +
   geom_point() +
@@ -418,8 +444,21 @@ plot <- ggplot(merged_data, aes(x = mean_engagement, y = mean_score, color = boo
         legend.box = "horizontal",
         legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10))
+        legend.text = element_text(size = 10)) +
+  theme_minimal()
+
 plot
+
+plot_median <- ggplot(merged_data1, aes(x = median_engagement, y = mean_score, color = book)) +
+  geom_point() +
+  facet_wrap(~ book, ncol = 2) +
+  labs(x = "Median Engagement", y = "Mean Score", title = "Density Graph of Mean Score vs. Median Engagement, Facet Wrapped by Book") +
+  theme(legend.position = "bottom",
+        legend.justification = "right",
+        legend.box = "horizontal",
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10))
 
 plot_engagement <- ggplot(merged_data, aes(x = mean_engagement, fill = factor(book), color = factor(book))) +
   geom_histogram(aes(y = ..density..), binwidth = 0.01, alpha = 0.1) + # Adjust alpha for histogram transparency
@@ -431,8 +470,8 @@ plot_engagement <- ggplot(merged_data, aes(x = mean_engagement, fill = factor(bo
   theme(legend.title = element_blank()) # Optional: remove legend title
 
 plot_engagement
-ggsave("plot.png", plot = plot_engagement, width = 45, height = 10)
-system("open plot.png")
+ggsave("plot_median.png", plot = plot_median, width = 22, height = 10)
+system("open plot_median.png")
 
 plot_score <- ggplot(merged_data, aes(x = mean_score, fill = factor(book), color = factor(book))) +
   geom_density(alpha = 0) + # Overlay density plots for each book
