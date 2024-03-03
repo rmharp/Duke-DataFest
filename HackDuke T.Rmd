@@ -242,7 +242,7 @@ system("open plot.png")
 ```
 
 ```{r}
-sample_data_checkpoints = read_csv("./Data Files/checkpoints.csv")
+sample_data_checkpoints <- read_csv("./Data Files/checkpoints.csv")
 ```
 
 ```{r}
@@ -288,6 +288,42 @@ ggplot(merged_data_by_construct, aes(x = avg_pulse_rating, y = avg_score, color 
     y = "Average Score by Chapter"
   ) +
   theme_minimal()
+```
+```{r}
+#| label: tidy-page-views
+
+mean_section_engagements <- data_pageviews |>
+  filter(!is.na(book), !is.na(chapter_number), !is.na(section_number), !is.na(engaged)) %>%
+  group_by(book, chapter_number, section_number) |>
+    summarize(mean_engagement = mean(engaged, na.rm = TRUE))
+
+mean_section_scores <- data_responses %>%
+  filter(!is.na(book), !is.na(chapter_number), !is.na(section_number), !is.na(points_earned)) %>%
+  group_by(book, chapter_number, section_number) %>%
+  summarise(mean_score = mean(points_earned, na.rm = TRUE))
+
+merged_data <- inner_join(mean_section_engagements, mean_section_scores, by = c("book", "chapter_number", "section_number"))  %>% filter(mean_engagement < 1000000)
+
+plot <- ggplot(merged_data, aes(x = mean_engagement, y = mean_score, color = book)) +
+  geom_point() +
+  facet_wrap(~ book, ncol = 2) +
+  labs(x = "Mean Engagement", y = "Mean Score", title = "Density Graph of Mean Score vs. Mean Engagement, Facet Wrapped by Book") +
+  theme(legend.position = "bottom",
+        legend.justification = "right",
+        legend.box = "horizontal",
+        legend.margin = margin(t = 0, r = 0, b = 0, l = 0),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10))
+
+plot
+
+table(merged_data)
+mean_by_book <- merged_data %>%
+  group_by(book) %>%
+  summarize(mean_points = mean(mean_score, na.rm = TRUE), median_score = median(mean_score, na.rm = TRUE))
+mean_by_book
+
+```
 ```
 
 ```{r}
