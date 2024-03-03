@@ -21,34 +21,34 @@ if (!require(ggplot2)) {install.packages("ggplot2"); library(ggplot2)}
 
 ```{r data}
 #data <- read.csv("./data/responses.csv")
-#sample_data_responses <- read.csv("./sample_data/responses.csv")
-sample_data_responses <- read.csv("./Data Files/responses.csv")
-#sample_data_mediaviews <- read.csv("./sample_data/media_views.csv")
-sample_data_mediaviews <- read.csv("./Data Files/media_views.csv")
-df <- read.csv("./Data Files/page_views.csv")
+#data_responses <- read.csv("./data/responses.csv")
+data_responses <- read.csv("./Data Files/responses.csv")
+#data_mediaviews <- read.csv("./data/media_views.csv")
+data_mediaviews <- read.csv("./Data Files/media_views.csv")
+data_pageviews <- read.csv("./Data Files/page_views.csv")
 ```
 
 ```{r}
 ### Informed EDA
 
-sample_rows_with_non_na <- apply(sample_data_responses[, 29:40], 1, function(x) any(!is.na(x)))
-sample_filtered_data <- sample_data_responses[sample_rows_with_non_na, ]
-lrn_type_counts <- table(sample_data_responses$lrn_type)
+sample_rows_with_non_na <- apply(data_responses[, 29:40], 1, function(x) any(!is.na(x)))
+sample_filtered_data <- data_responses[sample_rows_with_non_na, ]
+lrn_type_counts <- table(data_responses$lrn_type)
 # Convert the table to a dataframe for ggplot2
-lrn_type_counts_df <- as.data.frame(lrn_type_counts)
+lrn_type_counts_data_pageviews <- as.data.frame(lrn_type_counts)
 
 # Rename the columns for clarity
-names(lrn_type_counts_df) <- c("lrn_type", "count")
+names(lrn_type_counts_data_pageviews) <- c("lrn_type", "count")
 
 # Calculate the total count
-total_count <- sum(lrn_type_counts_df$count)
+total_count <- sum(lrn_type_counts_data_pageviews$count)
 
 # Add a percentage column
-lrn_type_counts_df <- lrn_type_counts_df %>%
+lrn_type_counts_data_pageviews <- lrn_type_counts_data_pageviews %>%
   mutate(percentage = (count / total_count) * 100)
 
 # Create the bar chart showing percentages
-ggplot(lrn_type_counts_df, aes(x = lrn_type, y = percentage, fill = lrn_type)) +
+ggplot(lrn_type_counts_data_pageviews, aes(x = lrn_type, y = percentage, fill = lrn_type)) +
   geom_bar(stat = "identity", color = "black", fill = "steelblue", show.legend = FALSE) + # Add border color and fill
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12), # Adjust text size and angle for readability
@@ -63,7 +63,7 @@ ggplot(lrn_type_counts_df, aes(x = lrn_type, y = percentage, fill = lrn_type)) +
        y = "Percentage (%)")
 
 # Calculate the average points earned for each lrn_type
-avg_points_by_lrn_type <- sample_data_responses %>%
+avg_points_by_lrn_type <- data_responses %>%
   group_by(lrn_type) %>%
   summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
 
@@ -81,7 +81,7 @@ ggplot(avg_points_by_lrn_type, aes(x = lrn_type, y = avg_points_earned, fill = l
        y = "Average Points Earned")
 
 # Calculate the average points earned for each lrn_type
-avg_points_by_book <- sample_data_responses %>%
+avg_points_by_book <- data_responses %>%
   group_by(book) %>%
   summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
 
@@ -98,9 +98,9 @@ ggplot(avg_points_by_book, aes(x = book, y = avg_points_earned, fill = book)) +
        x = "Book",
        y = "Average Points Earned")
 
-sample_data_responses$combined_column <- paste(sample_data_responses$chapter_number, sample_data_responses$section_number, sep = ".")
+data_responses$combined_column <- paste(data_responses$chapter_number, data_responses$section_number, sep = ".")
 
-avg_points_by_combined <- sample_data_responses %>%
+avg_points_by_combined <- data_responses %>%
   group_by(combined_column) %>%
   summarise(avg_points_earned = mean(points_earned, na.rm = TRUE))
 
@@ -158,17 +158,18 @@ plot_avg_points_by_column <- function(data, column_name) {
 
 # Exclude multiple columns when iterating for plots
 columns_to_exclude <- c("points_earned", "page", "points_possible", "dt_submitted", "completes_page", "lrn_response_id", "lrn_dt_started", "lrn_dt_saved", "lrn_status", "lrn_option_0", "lrn_option_1", "lrn_option_2", "lrn_option_3", "lrn_option_4", "lrn_option_5", "lrn_option_6", "lrn_option_7", "lrn_option_8", "lrn_option_9", "lrn_option_10", "lrn_option_11", "response", "prompt", "user_agent")
-columns_of_interest <- setdiff(names(sample_data_responses), columns_to_exclude)
+columns_of_interest <- setdiff(names(data_responses), columns_to_exclude)
 
 for(column_name in columns_of_interest) {
-  plot_avg_points_by_column(sample_data_responses, column_name)
+  plot_avg_points_by_column(data_responses, column_name)
 }
 ```
 
 ```{r}
-filtered <- subset(df, !was_complete | !engaged)
+filtered <- subset(data_pageviews, !was_complete | !engaged)
 engagement_by_chapter_and_institution <- filtered %>%
-  group_by(chapter, institution_id) %>%
+  filter(!is.na(engaged)) %>%
+  group_by(book, chapter, institution_id) %>%
   summarise(mean_engaged = mean(engaged, na.rm = TRUE), median_engaged = median(engaged, na.rm = TRUE))
 
 engagement_by_chapter_and_institution <- engagement_by_chapter_and_institution %>%
@@ -176,15 +177,17 @@ engagement_by_chapter_and_institution <- engagement_by_chapter_and_institution %
 
 y_axis_limits <- quantile(engagement_by_chapter_and_institution$median_engaged, c(0.05, 0.95))
 
-ggplot(engagement_by_chapter_and_institution, aes(x = chapter, y = median_engaged, color = factor(institution_id))) +
-  geom_point() + 
+plot1 <- ggplot(engagement_by_chapter_and_institution, aes(x = chapter, y = median_engaged, color = factor(institution_id))) +
+  geom_point() +
+  facet_wrap(~book) +
   labs(title = "Engagement by Chapter and Institution", x = "Chapter", y = "Median Engaged") +
   scale_color_discrete(name = "Institution ID") +
   theme_minimal() +
   coord_cartesian(ylim = y_axis_limits)
 
-ggplot(engagement_by_chapter_and_institution, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
+plot2 <- ggplot(engagement_by_chapter_and_institution, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
   geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~book) +
   labs(title = "Engagement by Chapter and Institution", x = "Chapter", y = "Median Engaged") +
   scale_color_discrete(name = "Institution ID") +
   theme_minimal()
@@ -207,35 +210,89 @@ institution_id_filtered_3_2 <- engagement_by_chapter_and_institution %>%
                                "2f830a93-5a14-4aff-a6e8-c7d2562e2007", 
                                "c699dd97-e5a4-49ce-9718-877a81b1d475"))
 
-ggplot(institution_id_filtered_8, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
+plot3 <- ggplot(institution_id_filtered_4, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
   geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~book) +
   labs(title = "Engagement by Chapter and Institution", x = "Chapter", y = "Median Engaged") +
   scale_color_discrete(name = "Institution ID") +
   theme_minimal()
 
-ggplot(institution_id_filtered_3_1, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
+plot4 <- ggplot(institution_id_filtered_3_1, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
   geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~book) +
   labs(title = "Engagement by Chapter and Institution", x = "Chapter", y = "Median Engaged") +
   scale_color_discrete(name = "Institution ID") +
   theme_minimal()
 
-ggplot(institution_id_filtered_3_2, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
+plot5 <- ggplot(institution_id_filtered_3_2, aes(x = chapter, y = median_engaged, group = institution_id, color = factor(institution_id))) +
   geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~book) +
   labs(title = "Engagement by Chapter and Institution", x = "Chapter", y = "Median Engaged") +
   scale_color_discrete(name = "Institution ID") +
   theme_minimal()
 
-# number_of_students_per_institution <- filtered %>%
-#   group_by(page) %>%
-#   count(institution_id)
-# 
-# merged <- inner_join(average_engagement_by_chapter_and_institution, number_of_students_per_institution, by=c("page", "institution_id"))
-# merged <- mutate(merged, average = engaged / n)
-# merged
+plot1
+plot2
+plot3
+plot4
+plot5
+
+ggsave("plot.png", plot = plot5, width = 15, height = 10)
+system("open plot.png")
 ```
 
 ```{r}
-media_views$combined_column <- paste(media_views$chapter_number, media_views$section_number, sep = ".")
-sorted_media_views <- media_views[order(media_views$combined_column), ]
-combined_counts <- table(sorted_media_views$combined_column)
+sample_data_checkpoints = read_csv("./Data Files/checkpoints.csv")
+```
+
+```{r}
+### Pulse Rating vs. Average Score
+
+# Step 1: Calculate the average pulse rating for each construct within each book chapter
+avg_pulse_rating_construct <- sample_data_checkpoints %>%
+  filter(!is.na(book), !is.na(chapter_number), !is.na(response) & response != "" & !is.na(as.numeric(response))) %>%
+  group_by(book, chapter_number, construct) %>%
+  summarise(avg_pulse_rating = mean(as.numeric(response), na.rm = TRUE))
+
+avg_pulse_rating <- sample_data_checkpoints %>%
+  mutate(response = as.numeric(response)) %>%
+  filter(!is.na(book) & !is.na(chapter_number) & !is.na(response)) %>%
+  group_by(book, chapter_number) %>%
+  summarise(avg_pulse_rating = mean(response, na.rm = TRUE), .groups = 'drop')
+
+# Step 2: Calculate the average score for each book 
+avg_score <- sample_data_responses %>%
+  filter(!is.na(book), !is.na(chapter_number), !is.na(points_earned)) %>%
+  group_by(book, chapter_number) %>%
+  summarise(avg_score = mean(points_earned, na.rm = TRUE))
+
+merged_data <- inner_join(avg_pulse_rating, avg_score, by = c("book", "chapter_number"))
+merged_data_by_construct <- inner_join(avg_pulse_rating_construct, avg_score, by = c("book", "chapter_number"))
+
+# Step 4: Plotting
+ggplot(merged_data, aes(x = avg_pulse_rating, y = avg_score, color = book)) +
+  geom_point() +
+  labs(
+    title = "Average Score by Chapter vs. Pulse Rating Overall",
+    x = "Average Pulse Rating",
+    y = "Average Score by Chapter"
+  ) +
+  theme_minimal()
+
+ggplot(merged_data_by_construct, aes(x = avg_pulse_rating, y = avg_score, color = book)) +
+  geom_point() +
+  facet_wrap(~construct) +
+  labs(
+    title = "Average Score by Chapter vs. Pulse Rating by Construct",
+    x = "Average Pulse Rating",
+    y = "Average Score by Chapter"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+data_mediaviews$combined_column <- paste(data_mediaviews$chapter_number, data_mediaviews$section_number, sep = ".")
+sorted_mediaviews <- data_mediaviews[order(data_mediaviews$combined_column), ]
+combined_counts <- table(sorted_mediaviews$combined_column)
+combined_counts
 ```
