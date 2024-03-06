@@ -1,6 +1,6 @@
 # Duke DataFest 2024 - Blue & Blue Data Crew
 
-Welcome to the GitHub repository for the Blue & Blue Data Crew team participating in Duke DataFest 2024! Our team is comprised of four dedicated members: Riley Harper, Aniruddh Doki, Michael Puglise, and Thomas Bland. We're excited to dive into the data and uncover insights together.
+Welcome to the GitHub repository for the Blue & Blue Data Crew team **finalists** in Duke DataFest 2024! Our team is comprised of four dedicated members: Riley Harper, Aniruddh Doki, Michael Puglise, and Thomas Bland. We're excited to dive into the data and uncover insights together.
 
 ## Event Details
 
